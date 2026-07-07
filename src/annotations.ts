@@ -319,20 +319,10 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
       return new vscode.Hover(message, annotationRange);
     });
 
-  const handleDidChangeActiveTextEditorEffect = (
-    editor: vscode.TextEditor | undefined,
+  const applyAnnotationsForEditorEffect = (
+    editor: vscode.TextEditor,
   ): Effect.Effect<void, Error, Vscode> =>
     Effect.gen(function* () {
-      if (!editor) {
-        yield* Ref.update(annotationState, (state) => ({
-          ...state,
-          activeEditorUri: undefined,
-          annotateInfo: undefined,
-          activeLines: [],
-        }));
-        return;
-      }
-
       const activeLines = editor.selections.map(
         (selection) => selection.active.line,
       );
@@ -345,6 +335,53 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
       yield* setDecorationsEffect(editor, activeLines);
     });
 
+  let repoUpdateSubscription: vscode.Disposable | undefined;
+  const subscribeToRepoUpdates = (uri: vscode.Uri | undefined): void => {
+    repoUpdateSubscription?.dispose();
+    repoUpdateSubscription = undefined;
+    if (!uri) {
+      return;
+    }
+    const repo = deps.findRepoByUri(uri);
+    if (!repo) {
+      return;
+    }
+    repoUpdateSubscription = repo.onDidUpdateEmitter.event(() => {
+      deps.dispatchExtensionEffect(
+        getActiveTextEditor().pipe(
+          Effect.flatMap((editor) =>
+            editor ? applyAnnotationsForEditorEffect(editor) : Effect.void,
+          ),
+        ),
+        "Failed to refresh annotations after repository update",
+      );
+    });
+  };
+
+  const handleDidChangeActiveTextEditorEffect = (
+    editor: vscode.TextEditor | undefined,
+  ): Effect.Effect<void, Error, Vscode> =>
+    Effect.gen(function* () {
+      subscribeToRepoUpdates(editor?.document.uri);
+      if (!editor) {
+        yield* Ref.update(annotationState, (state) => ({
+          ...state,
+          activeEditorUri: undefined,
+          annotateInfo: undefined,
+          activeLines: [],
+        }));
+        return;
+      }
+
+      yield* applyAnnotationsForEditorEffect(editor);
+    });
+
+  await deps.registerScoped(() => ({
+    dispose() {
+      repoUpdateSubscription?.dispose();
+      repoUpdateSubscription = undefined;
+    },
+  }));
   await deps.registerScoped(() =>
     vscode.languages.registerHoverProvider(
       [{ scheme: "file" }, { scheme: "jj" }],

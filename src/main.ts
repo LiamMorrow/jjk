@@ -233,6 +233,7 @@ export async function activate(context: vscode.ExtensionContext) {
           setContext("jjGraphView.nodesSelected", count).pipe(Effect.asVoid),
         ),
     });
+    // eslint-disable-next-line no-useless-assignment
     isInitialized = extensionViews !== undefined;
   }
 

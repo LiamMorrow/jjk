@@ -530,7 +530,9 @@ export function parseOperationLog(
           op.snapshot = value === "true";
           break;
         default:
-          throw new Error(`Unexpected operation log field: ${rt.fields[i].name}`);
+          throw new Error(
+            `Unexpected operation log field: ${rt.fields[i].name}`,
+          );
       }
     }
     ret.push(op);
@@ -585,6 +587,7 @@ export function parseLog(output: string): ChangeNode[] {
     const description = match ? match[1] : "";
 
     if (description) {
+      // eslint-disable-next-line no-useless-assignment
       evenLine = evenLine.replace(description, "");
     }
 
