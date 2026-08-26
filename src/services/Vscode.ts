@@ -44,6 +44,15 @@ export interface VscodeService {
   readonly getActiveTextEditor: () => Effect.Effect<
     vscode.TextEditor | undefined
   >;
+  readonly getVisibleTextEditors: () => Effect.Effect<
+    readonly vscode.TextEditor[]
+  >;
+  readonly applyWorkspaceEdit: (
+    edit: vscode.WorkspaceEdit,
+  ) => Effect.Effect<boolean, Error>;
+  readonly saveTextDocument: (
+    document: vscode.TextDocument,
+  ) => Effect.Effect<boolean, Error>;
 }
 
 export class Vscode extends Context.Tag("Vscode")<Vscode, VscodeService>() {}
@@ -133,6 +142,18 @@ export function VscodeLive(
       }),
     getActiveTextEditor: () =>
       Effect.sync(() => vscode.window.activeTextEditor),
+    getVisibleTextEditors: () =>
+      Effect.sync(() => vscode.window.visibleTextEditors),
+    applyWorkspaceEdit: (edit: vscode.WorkspaceEdit) =>
+      Effect.tryPromise({
+        try: () => Promise.resolve(vscode.workspace.applyEdit(edit)),
+        catch: toError,
+      }),
+    saveTextDocument: (document: vscode.TextDocument) =>
+      Effect.tryPromise({
+        try: () => Promise.resolve(document.save()),
+        catch: toError,
+      }),
   });
 }
 
@@ -213,6 +234,22 @@ export const getActiveTextEditor = (): Effect.Effect<
   never,
   Vscode
 > => Effect.flatMap(Vscode, (service) => service.getActiveTextEditor());
+
+export const getVisibleTextEditors = (): Effect.Effect<
+  readonly vscode.TextEditor[],
+  never,
+  Vscode
+> => Effect.flatMap(Vscode, (service) => service.getVisibleTextEditors());
+
+export const applyWorkspaceEdit = (
+  edit: vscode.WorkspaceEdit,
+): Effect.Effect<boolean, Error, Vscode> =>
+  Effect.flatMap(Vscode, (service) => service.applyWorkspaceEdit(edit));
+
+export const saveTextDocument = (
+  document: vscode.TextDocument,
+): Effect.Effect<boolean, Error, Vscode> =>
+  Effect.flatMap(Vscode, (service) => service.saveTextDocument(document));
 
 export const setContext = (
   key: string,

@@ -4,7 +4,12 @@ import type { JJCli } from "./services/JJCli";
 import type { ExtensionResources } from "./services/ExtensionResources";
 import type { Vscode } from "./services/Vscode";
 import { getActiveTextEditor, getConfigurationValue } from "./services/Vscode";
-import { annotate, getOriginalPath, getShow } from "./services/Repository";
+import {
+  annotate,
+  getOriginalPath,
+  getPathAtRev,
+  getShow,
+} from "./services/Repository";
 import type { RepoHandle } from "./repoHandle";
 import { getParams } from "./uri";
 import type { ChangeWithDetails } from "./types";
@@ -26,6 +31,8 @@ interface AnnotationState {
 interface AnnotationInfo {
   readonly uri: vscode.Uri;
   readonly changeIdsByLine: readonly string[];
+  readonly rev: string;
+  readonly filePath: string;
 }
 
 export interface AnnotationDeps {
@@ -123,20 +130,14 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
 
       const rev = getAnnotationRev(uri);
       const params = uri.scheme === "jj" ? getParams(uri) : undefined;
-      const annotateEffect =
+      const filePath = yield* deps.runRepoEffect(
+        repo,
         params && "diffOriginalRev" in params
-          ? getOriginalPath(
-              repo.config,
-              params.diffOriginalRev,
-              uri.fsPath,
-            ).pipe(
-              Effect.flatMap((originalPath) =>
-                annotate(repo.config, originalPath, rev),
-              ),
-            )
-          : annotate(repo.config, uri.fsPath, rev);
+          ? getOriginalPath(repo.config, params.diffOriginalRev, uri.fsPath)
+          : Effect.succeed(uri.fsPath),
+      );
       const changeIdsByLine = yield* deps
-        .runRepoEffect(repo, annotateEffect)
+        .runRepoEffect(repo, annotate(repo.config, filePath, rev))
         .pipe(
           Effect.catchIf(
             (error) => error.message.includes("more than one revision"),
@@ -148,7 +149,7 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
         ...state,
         annotateInfo:
           uriEquals(state.activeEditorUri, uri) && changeIdsByLine.length > 0
-            ? { uri, changeIdsByLine }
+            ? { uri, changeIdsByLine, rev, filePath }
             : undefined,
       }));
     });
@@ -258,9 +259,10 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
   ): Effect.Effect<vscode.Hover | undefined, Error, Vscode> =>
     Effect.gen(function* () {
       const state = yield* Ref.get(annotationState);
+      const annotateInfo = state.annotateInfo;
       if (
-        !state.annotateInfo ||
-        !uriEquals(state.annotateInfo.uri, document.uri) ||
+        !annotateInfo ||
+        !uriEquals(annotateInfo.uri, document.uri) ||
         !state.activeLines.includes(position.line)
       ) {
         return undefined;
@@ -280,7 +282,7 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
         return undefined;
       }
 
-      const changeId = state.annotateInfo.changeIdsByLine[position.line];
+      const changeId = annotateInfo.changeIdsByLine[position.line];
       if (!changeId) {
         return undefined;
       }
@@ -299,8 +301,19 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
       const viewChangeArgs = encodeURIComponent(
         JSON.stringify([repo.config.repositoryRoot, change.changeId]),
       );
+      const pathAtChange = yield* deps
+        .runRepoEffect(
+          repo,
+          getPathAtRev(
+            repo.config,
+            change.changeId,
+            annotateInfo.rev,
+            annotateInfo.filePath,
+          ),
+        )
+        .pipe(Effect.catchAll(() => Effect.succeed(annotateInfo.filePath)));
       const openChangesArgs = encodeURIComponent(
-        JSON.stringify([change.changeId, document.uri.fsPath, position.line]),
+        JSON.stringify([change.changeId, pathAtChange, position.line]),
       );
       const message = new vscode.MarkdownString(undefined, true);
       message.isTrusted = {

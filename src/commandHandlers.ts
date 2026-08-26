@@ -6,6 +6,7 @@ import {
   createWorkspaceCommandHandlers,
 } from "./navigationCommandHandlers";
 import { createSelectionSquashInitHandlers } from "./selectionSquashCommandHandlers";
+import { createRevertChangeInitHandlers } from "./revertChangeCommandHandlers";
 
 export type { CommandHandlerDeps } from "./commandHandlerShared";
 
@@ -15,6 +16,7 @@ export const createInitCommandHandlers = (
   ...createChangeActionInitHandlers(deps),
   ...createNavigationInitHandlers(deps),
   ...createSelectionSquashInitHandlers(deps),
+  ...createRevertChangeInitHandlers(deps),
 });
 
 export const createGlobalCommandHandlers = (

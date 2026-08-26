@@ -330,19 +330,23 @@ export const annotate = (
     return lines.map((line) => line.split(" ")[0]);
   });
 
-// Resolves the path a file had before `rev`. If `rev` renamed the file, the
-// path at its parent is the rename source; otherwise it is unchanged.
-export const getOriginalPath = (
+// Resolves the path a file at `toRev` had back at `fromRev`, following any
+// renames or copies in between. Unrenamed files keep their path.
+export const getPathAtRev = (
   config: RepositoryConfig,
-  rev: string,
+  fromRev: string,
+  toRev: string,
   filepath: string,
 ): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
   Effect.gen(function* () {
     const cli = yield* JJCli;
-    const output = yield* cli.run(["diff", "--summary", "-r", rev], {
-      timeout: 10_000,
-      ignoreWorkingCopy: true,
-    });
+    const output = yield* cli.run(
+      ["diff", "--summary", "--from", fromRev, "--to", toRev],
+      {
+        timeout: 10_000,
+        ignoreWorkingCopy: true,
+      },
+    );
     const normalizedTarget = path.normalize(filepath).replace(/\\/g, "/");
     for (const raw of output.trim().split("\n")) {
       const line = raw.trim();
@@ -362,6 +366,15 @@ export const getOriginalPath = (
     }
     return filepath;
   });
+
+// Resolves the path a file had before `rev`. If `rev` renamed the file, the
+// path at its parent is the rename source; otherwise it is unchanged.
+export const getOriginalPath = (
+  config: RepositoryConfig,
+  rev: string,
+  filepath: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  getPathAtRev(config, `${rev}-`, rev, filepath);
 
 export const log = (
   _config: RepositoryConfig,

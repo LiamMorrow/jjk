@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { LineChange } from "./lineDiffUtils";
 
 type RegisterScoped = <A extends { dispose(): unknown }>(
   acquire: () => A,
@@ -47,6 +48,11 @@ export interface InitCommandHandlers {
   readonly openParentChange: (uri: vscode.Uri) => unknown;
   readonly openChildChange: (uri: vscode.Uri) => unknown;
   readonly viewChange: (repositoryRoot: string, changeId: string) => unknown;
+  readonly revertChange: (
+    uri: vscode.Uri | undefined,
+    changes: readonly LineChange[],
+    index: number,
+  ) => unknown;
   readonly openChangeFileDiff: (
     changeId: string,
     fsPath: string,
@@ -200,6 +206,9 @@ export async function registerInitCommands(
   );
   await registerScoped(() =>
     vscode.commands.registerCommand("jj.viewChange", handlers.viewChange),
+  );
+  await registerScoped(() =>
+    vscode.commands.registerCommand("jj.revertChange", handlers.revertChange),
   );
   await registerScoped(() =>
     vscode.commands.registerCommand(

@@ -4,7 +4,7 @@
   "publisher": "jjk",
   "description": "Jujutsu (jj) version control system for VS Code",
   "icon": "images/logo.png",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "engines": {
     "vscode": "^1.96.0",
     "npm": ">=11.10.0"
@@ -186,6 +186,12 @@
         "command": "jj.squashSelectedRanges",
         "title": "Squash selected changes...",
         "category": "Jujutsu"
+      },
+      {
+        "command": "jj.revertChange",
+        "title": "Revert change",
+        "category": "Jujutsu",
+        "icon": "$(discard)"
       },
       {
         "command": "jj.openParentChange",
@@ -460,6 +466,16 @@
         {
           "command": "jj.openChangeFileDiff",
           "when": "false"
+        },
+        {
+          "command": "jj.revertChange",
+          "when": "false"
+        }
+      ],
+      "scm/change/title": [
+        {
+          "command": "jj.revertChange",
+          "when": "originalResource =~ /^jj\\:/"
         }
       ]
     },
