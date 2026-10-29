@@ -2,7 +2,9 @@ import { Effect } from "effect";
 import type { InitCommandHandlers } from "./commands";
 import type { CommandHandlerDeps } from "./commandHandlerShared";
 import { readRepoState } from "./commandHandlerShared";
-import { showInputBox, showQuickPick } from "./services/Vscode";
+import { showQuickPick } from "./services/Vscode";
+import type { RepoCommandEffect } from "./commandHandlerShared";
+import { combineDescriptions, editDescription } from "./descriptionEditor";
 import {
   getShow,
   jjDescribe,
@@ -11,34 +13,41 @@ import {
   jjRestore,
   jjSquash,
 } from "./services/Repository";
-import type { FileStatus } from "./types";
+import type { FileStatus, RepositoryConfig } from "./types";
 import { pathEquals } from "./utils";
 
 const maybePromptForSquashMessage = (
+  config: RepositoryConfig,
   shouldPrompt: boolean,
-  fallbackDescription: string,
-): Effect.Effect<
-  { readonly cancelled: boolean; readonly message: string | undefined },
-  never,
-  import("./services/Vscode").Vscode
-> =>
+  sourceRev: string,
+  destinationRev: string,
+): RepoCommandEffect<{
+  readonly cancelled: boolean;
+  readonly message: string | undefined;
+}> =>
   Effect.gen(function* () {
     if (!shouldPrompt) {
       return { cancelled: false, message: undefined } as const;
     }
 
-    const message = yield* showInputBox({
-      prompt: "Provide a description",
-      placeHolder: "Set description here...",
+    const [source, destination] = yield* Effect.all([
+      getShow(config, sourceRev),
+      getShow(config, destinationRev),
+    ]);
+    const message = yield* editDescription({
+      fileName: "squash.jjdescription",
+      initialDescription: combineDescriptions(
+        destination.change.description,
+        source.change.description,
+      ),
+      instructions: [
+        "Enter a description for the combined change.",
+        "Save and close this tab to squash. Leave it empty to cancel.",
+      ],
     });
-    if (message === undefined) {
-      return { cancelled: true, message: undefined } as const;
-    }
-
-    return {
-      cancelled: false,
-      message: message === "" ? fallbackDescription : message,
-    } as const;
+    return message === ""
+      ? ({ cancelled: true, message: undefined } as const)
+      : ({ cancelled: false, message } as const);
   });
 
 export const createChangeActionInitHandlers = (
@@ -169,10 +178,12 @@ export const createChangeActionInitHandlers = (
           }
 
           const promptResult = yield* maybePromptForSquashMessage(
+            repo.config,
             resourceGroup.resourceStates.length === resourceStates.length &&
               state.status.workingCopy.description !== "" &&
               destinationParentChange.description !== "",
-            destinationParentChange.description,
+            "@",
+            destinationParentChange.changeId,
           );
           if (promptResult.cancelled) {
             return;
@@ -228,10 +239,12 @@ export const createChangeActionInitHandlers = (
           }
 
           const promptResult = yield* maybePromptForSquashMessage(
+            repo.config,
             resourceGroup.resourceStates.length === resourceStates.length &&
               state.status.workingCopy.description !== "" &&
               parentChange.description !== "",
-            state.status.workingCopy.description,
+            resourceGroup.id,
+            "@",
           );
           if (promptResult.cancelled) {
             return;
@@ -272,12 +285,16 @@ export const createChangeActionInitHandlers = (
       repo,
       Effect.gen(function* () {
         const showResult = yield* getShow(repo.config, resourceGroup.id);
-        const message = yield* showInputBox({
-          prompt: "Provide a description",
-          placeHolder: "Change description here...",
-          value: showResult.change.description,
+        const currentDescription = showResult.change.description.trim();
+        const message = yield* editDescription({
+          fileName: "describe.jjdescription",
+          initialDescription: currentDescription,
+          instructions: [
+            `Enter a description for ${showResult.change.changeId.substring(0, 8)}.`,
+            "Save and close this tab to apply.",
+          ],
         });
-        if (message === undefined) {
+        if (message === currentDescription) {
           return;
         }
 
@@ -324,9 +341,11 @@ export const createChangeActionInitHandlers = (
           }
 
           const promptResult = yield* maybePromptForSquashMessage(
+            repo.config,
             state.status.workingCopy.description !== "" &&
               destinationParentChange.description !== "",
-            destinationParentChange.description,
+            "@",
+            destinationParentChange.changeId,
           );
           if (promptResult.cancelled) {
             return;
@@ -374,9 +393,11 @@ export const createChangeActionInitHandlers = (
           }
 
           const promptResult = yield* maybePromptForSquashMessage(
+            repo.config,
             state.status.workingCopy.description !== "" &&
               parentChange.description !== "",
-            state.status.workingCopy.description,
+            resourceGroup.id,
+            "@",
           );
           if (promptResult.cancelled) {
             return;
