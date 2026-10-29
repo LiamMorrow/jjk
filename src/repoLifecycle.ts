@@ -248,7 +248,7 @@ export const makeRepoLifecycle = (deps: RepoLifecycleDeps): RepoLifecycle => {
 
     deps.repos.push(repo);
     logger.info(
-      `Initialized jjk for ${info.repoRoot}. Using ${info.jjVersion} at ${info.jjPath.filepath} (${info.jjPath.source}).`,
+      `Initialized jj-code for ${info.repoRoot}. Using ${info.jjVersion} at ${info.jjPath.filepath} (${info.jjPath.source}).`,
     );
   };
 

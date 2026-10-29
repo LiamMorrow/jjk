@@ -58,7 +58,7 @@ function getCommandTimeout(
     if (repositoryRoot) {
       const configuredTimeout = yield* getFolderConfigurationValue<
         number | null
-      >("jjk", "commandTimeout", repositoryRoot);
+      >("jj-code", "commandTimeout", repositoryRoot);
       if (configuredTimeout !== null && configuredTimeout !== undefined) {
         return configuredTimeout;
       }
@@ -76,7 +76,7 @@ export const getPollIgnoreWorkingCopyArgs = (
 > =>
   Effect.gen(function* () {
     const pollSnapshot = yield* getFolderConfigurationValue<boolean>(
-      "jjk",
+      "jj-code",
       "pollSnapshotWorkingCopy",
       repositoryRoot,
     );

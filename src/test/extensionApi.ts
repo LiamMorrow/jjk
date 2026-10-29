@@ -19,7 +19,7 @@ type ExtensionAPI = {
 };
 
 export async function getExtensionAPI(): Promise<ExtensionAPI> {
-  const extension = vscode.extensions.getExtension<ExtensionAPI>("jjk.jjk");
+  const extension = vscode.extensions.getExtension<ExtensionAPI>("jjk.jj-code");
   assert.ok(extension, "Extension not found");
   if (!extension.isActive) {
     return extension.activate();

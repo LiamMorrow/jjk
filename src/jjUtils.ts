@@ -98,7 +98,7 @@ export function getJJPathEffect(
 > {
   return Effect.gen(function* () {
     const configuredPath = yield* getConfigurationValue<string>(
-      "jjk",
+      "jj-code",
       "jjPath",
       workspaceFolder !== undefined
         ? vscode.Uri.file(workspaceFolder)
@@ -116,7 +116,7 @@ export function getJJPathEffect(
       }
       return yield* Effect.fail(
         new Error(
-          `Configured jjk.jjPath is not an executable file: ${configuredPath}`,
+          `Configured jj-code.jjPath is not an executable file: ${configuredPath}`,
         ),
       );
     }
@@ -212,7 +212,7 @@ export function discoverRepositoriesEffect(): Effect.Effect<
           logger.debug(`No jj repo in ${workspaceFolder.uri.fsPath}`);
         } else {
           logger.error(
-            `Error while initializing jjk in workspace ${workspaceFolder.uri.fsPath}: ${String(e)}`,
+            `Error while initializing jj-code in workspace ${workspaceFolder.uri.fsPath}: ${String(e)}`,
           );
         }
       }

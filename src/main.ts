@@ -69,7 +69,7 @@ export async function activate(context: vscode.ExtensionContext) {
   await runInExtensionScope(
     Effect.gen(function* () {
       const outputChannel = yield* scopedDisposable(() =>
-        vscode.window.createOutputChannel("Jujutsu Kaizen", {
+        vscode.window.createOutputChannel("JJ Code", {
           log: true,
         }),
       );
@@ -89,7 +89,7 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info("Extension activated");
 
   const customFakeEditorPath = await extensionRuntime.runPromise(
-    getConfigurationValue<string | null>("jjk", "fakeEditorPath"),
+    getConfigurationValue<string | null>("jj-code", "fakeEditorPath"),
   );
   const extensionResourcesConfig = resolveExtensionResources(
     context.extensionUri,

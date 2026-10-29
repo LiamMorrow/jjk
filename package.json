@@ -1,6 +1,6 @@
 {
-  "name": "jjk",
-  "displayName": "Jujutsu Kaizen",
+  "name": "jj-code",
+  "displayName": "JJ Code",
   "publisher": "jjk",
   "description": "Jujutsu (jj) version control system for VS Code",
   "icon": "images/logo.png",
@@ -14,7 +14,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/keanemind/jjk.git"
+    "url": "https://github.com/LiamMorrow/jjk.git"
   },
   "activationEvents": [
     "*",
@@ -515,21 +515,21 @@
       ]
     },
     "configuration": {
-      "title": "Jujutsu Kaizen",
+      "title": "JJ Code",
       "properties": {
-        "jjk.enableAnnotations": {
+        "jj-code.enableAnnotations": {
           "type": "boolean",
           "default": true,
           "description": "Enables in-line blame annotations",
           "scope": "resource"
         },
-        "jjk.githubPullRequestLookup": {
+        "jj-code.githubPullRequestLookup": {
           "type": "boolean",
           "default": true,
           "description": "Look up the GitHub pull request a commit was merged in when hovering blame annotations. Uses the GitHub API, authenticating with an existing VS Code GitHub session if one is available.",
           "scope": "resource"
         },
-        "jjk.commandTimeout": {
+        "jj-code.commandTimeout": {
           "type": [
             "number",
             "null"
@@ -539,13 +539,13 @@
           "scope": "resource",
           "minimum": 1000
         },
-        "jjk.jjPath": {
+        "jj-code.jjPath": {
           "type": "string",
           "default": "",
           "description": "Path to the jj executable. If not set, your PATH and common locations will be searched for a jj executable.",
           "scope": "resource"
         },
-        "jjk.fakeEditorPath": {
+        "jj-code.fakeEditorPath": {
           "type": [
             "string",
             "null"
@@ -553,7 +553,7 @@
           "default": null,
           "description": "Path to the fake editor executable. If not set, use bundled prebuilt binaries for the current platform."
         },
-        "jjk.pollSnapshotWorkingCopy": {
+        "jj-code.pollSnapshotWorkingCopy": {
           "type": "boolean",
           "default": true,
           "description": "Whether the periodic poll command (jj operation log) should snapshot the working copy. When enabled, file changes are automatically detected; when disabled, modified files may not auto-update until the next manual jj command.",

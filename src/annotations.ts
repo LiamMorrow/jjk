@@ -94,7 +94,7 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
     });
   const getAnnotationsEnabled = (repo: RepoHandle) =>
     getConfigurationValue<boolean>(
-      "jjk",
+      "jj-code",
       "enableAnnotations",
       vscode.Uri.file(repo.config.repositoryRoot),
     );
@@ -297,7 +297,7 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
       }
 
       const lookupEnabled = yield* getConfigurationValue<boolean>(
-        "jjk",
+        "jj-code",
         "githubPullRequestLookup",
         vscode.Uri.file(repo.config.repositoryRoot),
       );

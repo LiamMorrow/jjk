@@ -1,10 +1,9 @@
-# Jujutsu Kaizen
+# JJ Code
 
 ![banner](images/banner.png)
 
 > A Visual Studio Code extension for the [Jujutsu (jj) version control system](https://github.com/jj-vcs/jj).
 
-[![VS Code Extension](https://img.shields.io/visual-studio-marketplace/v/jjk.jjk)](https://marketplace.visualstudio.com/items?itemName=jjk.jjk)
 [![Discord](https://img.shields.io/discord/968932220549103686?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/BqBjUVerfq)
 
 ## 🚀 Features
@@ -48,11 +47,11 @@ Here's what you can do so far:
 
 ## 📋 Prerequisites
 
-- Ensure `jj` is installed and available in your system's `$PATH`, or configure a custom path using the `jjk.jjPath` setting
+- Ensure `jj` is installed and available in your system's `$PATH`, or configure a custom path using the `jj-code.jjPath` setting
 
 ## 🐛 Known Issues
 
-If you encounter any problems, please [report them on GitHub](https://github.com/keanemind/jjk/issues/)!
+If you encounter any problems, please [report them on GitHub](https://github.com/LiamMorrow/jjk/issues/)!
 
 ## 📝 License
 
