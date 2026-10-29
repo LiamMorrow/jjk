@@ -1,12 +1,8 @@
 import * as vscode from "vscode";
 import { Effect } from "effect";
 import { type } from "arktype";
-import type { RepositoryConfig } from "./types";
-import {
-  getGitRemotes,
-  getLatestPushedAncestor,
-  type GitRemote,
-} from "./services/Repository";
+import type { GitRemote, RepositoryConfig } from "./types";
+import { getGitRemotes, getLatestPushedAncestor } from "./services/Repository";
 
 export interface GitHubRepo {
   readonly owner: string;

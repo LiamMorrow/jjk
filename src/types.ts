@@ -69,3 +69,22 @@ export interface RepositoryConfig {
   jjPath: string;
   jjVersion: string;
 }
+
+export interface GitRemote {
+  readonly name: string;
+  readonly url: string;
+}
+
+export interface BookmarkRef {
+  readonly name: string;
+  readonly remote: string | undefined;
+  readonly commitId: string | undefined;
+  readonly tracked: boolean;
+  readonly remoteAheadCount: number | undefined;
+  readonly remoteBehindCount: number | undefined;
+}
+
+export interface BookmarkedCommit {
+  readonly commitId: string;
+  readonly bookmarks: string[];
+}

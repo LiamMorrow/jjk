@@ -42,6 +42,7 @@ import {
 } from "./effectRunners";
 import { makeRepoLifecycle } from "./repoLifecycle";
 import { initializeExtensionViews } from "./extensionViews";
+import { setupGitHubPullRequests } from "./githubPullRequests";
 
 export async function activate(context: vscode.ExtensionContext) {
   const vscodeLayer = VscodeLive(context);
@@ -142,6 +143,16 @@ export async function activate(context: vscode.ExtensionContext) {
   await repoLifecycle.initializeDiscoveredRepos();
   const { syncReposWithWorkspaceFolders, poll } = repoLifecycle;
 
+  const githubPullRequests = setupGitHubPullRequests({
+    repos: () => repos,
+    isEnabled: () =>
+      vscode.workspace
+        .getConfiguration("jj-code")
+        .get<boolean>("githubPullRequestsIntegration", true),
+  });
+  await registerScoped(() => ({ dispose: githubPullRequests.dispose }));
+  void githubPullRequests.reconcile();
+
   // --- Lazy init flag ---
   let isInitialized = false;
 
@@ -192,6 +203,7 @@ export async function activate(context: vscode.ExtensionContext) {
         syncReposWithWorkspaceFolders().pipe(
           Effect.zipRight(poll()),
           Effect.zipRight(checkReposFunction?.() ?? Effect.void),
+          Effect.zipRight(Effect.promise(() => githubPullRequests.reconcile())),
         ),
         "Failed to sync workspace folders",
       );
@@ -200,6 +212,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   await registerScoped(() =>
     vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("jj-code.githubPullRequestsIntegration")) {
+        void githubPullRequests.reconcile();
+      }
       if (e.affectsConfiguration("git")) {
         logger.info("Git configuration changed");
         const workspaceFolders = vscode.workspace.workspaceFolders || [];

@@ -7,6 +7,11 @@ import { ExtensionResources } from "./ExtensionResources";
 import type { JjWatchmanRegisterSnapshotTriggerRef } from "./JjWatchmanSnapshotTriggerRef";
 import type { Vscode } from "./Vscode";
 import {
+  BOOKMARK_REFS_TEMPLATE,
+  BOOKMARKED_COMMIT_TEMPLATE,
+  parseBookmarkedCommit,
+  parseBookmarkRefs,
+  parseGitRemotes,
   parseStatus,
   parseShowResult,
   parseRenamePaths,
@@ -20,6 +25,9 @@ import {
 import { pathEquals } from "../utils";
 import { logger } from "../logger";
 import {
+  BookmarkedCommit,
+  BookmarkRef,
+  GitRemote,
   RepositoryConfig,
   RepositoryStatus,
   Show,
@@ -274,11 +282,6 @@ export const gitFetch = (
     return yield* cli.run(["git", "fetch"], { timeout: 60_000 });
   });
 
-export interface GitRemote {
-  readonly name: string;
-  readonly url: string;
-}
-
 export const getGitRemotes = (
   _config: RepositoryConfig,
 ): Effect.Effect<GitRemote[], JJCliError | JJImmutableError, RepositoryEnv> =>
@@ -288,12 +291,7 @@ export const getGitRemotes = (
       timeout: 5000,
       ignoreWorkingCopy: true,
     });
-    return output
-      .trim()
-      .split("\n")
-      .map((line) => line.trim().split(/\s+/))
-      .filter((parts) => parts.length >= 2)
-      .map(([name, url]) => ({ name, url }));
+    return parseGitRemotes(output);
   });
 
 export const getLatestPushedAncestor = (
@@ -307,11 +305,171 @@ export const getLatestPushedAncestor = (
 > =>
   log(
     config,
-    `latest(::(${rev}) & ::remote_bookmarks(remote=exact:${JSON.stringify(remote)}))`,
+    `latest(::(${rev}) & ::remote_bookmarks(remote=${exactPattern(remote)}))`,
     "commit_id",
     1,
     true,
   ).pipe(Effect.map((output) => output.trim() || undefined));
+
+export const getGitRoot = (
+  _config: RepositoryConfig,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    const output = yield* cli.run(["git", "root"], {
+      timeout: 5000,
+      ignoreWorkingCopy: true,
+    });
+    return output.trim();
+  });
+
+export const getBookmarkRefs = (
+  _config: RepositoryConfig,
+): Effect.Effect<BookmarkRef[], JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    const output = yield* cli.run(
+      ["bookmark", "list", "--all-remotes", "-T", BOOKMARK_REFS_TEMPLATE],
+      { timeout: 5000, ignoreWorkingCopy: true },
+    );
+    return parseBookmarkRefs(output);
+  });
+
+export const getNearestBookmarkedAncestor = (
+  config: RepositoryConfig,
+): Effect.Effect<
+  BookmarkedCommit | undefined,
+  JJCliError | JJImmutableError,
+  RepositoryEnv
+> =>
+  log(
+    config,
+    "latest(heads(::@ & bookmarks()))",
+    BOOKMARKED_COMMIT_TEMPLATE,
+    1,
+    true,
+  ).pipe(Effect.map(parseBookmarkedCommit));
+
+export const gitFetchRemote = (
+  _config: RepositoryConfig,
+  remote: string,
+  bookmark?: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    return yield* cli.run(
+      [
+        "git",
+        "fetch",
+        "--remote",
+        exactPattern(remote),
+        ...(bookmark ? ["--branch", exactPattern(bookmark)] : []),
+      ],
+      { timeout: 60_000 },
+    );
+  });
+
+export const gitPushBookmark = (
+  _config: RepositoryConfig,
+  bookmark: string,
+  remote?: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    return yield* cli.run(
+      [
+        "git",
+        "push",
+        ...(remote ? ["--remote", remote] : []),
+        "--bookmark",
+        exactPattern(bookmark),
+      ],
+      { timeout: 60_000 },
+    );
+  });
+
+export const bookmarkCreate = (
+  _config: RepositoryConfig,
+  bookmark: string,
+  rev: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    return yield* cli.run(
+      ["bookmark", "create", revsetSymbol(bookmark), "-r", rev],
+      { timeout: 5000 },
+    );
+  });
+
+export const bookmarkTrack = (
+  _config: RepositoryConfig,
+  bookmark: string,
+  remote: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    return yield* cli.run(
+      [
+        "bookmark",
+        "track",
+        exactPattern(bookmark),
+        "--remote",
+        exactPattern(remote),
+      ],
+      { timeout: 5000 },
+    );
+  });
+
+export const rebaseOnto = (
+  _config: RepositoryConfig,
+  source: string,
+  onto: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    return yield* cli.run(["rebase", "--source", source, "--onto", onto], {
+      timeout: 10_000,
+    });
+  });
+
+export const gitRemoteAdd = (
+  _config: RepositoryConfig,
+  name: string,
+  url: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    return yield* cli.run(["git", "remote", "add", name, url], {
+      timeout: 5000,
+    });
+  });
+
+export const gitRemoteRemove = (
+  _config: RepositoryConfig,
+  name: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    return yield* cli.run(["git", "remote", "remove", name], {
+      timeout: 5000,
+    });
+  });
+
+export const gitRemoteRename = (
+  _config: RepositoryConfig,
+  name: string,
+  newName: string,
+): Effect.Effect<string, JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    return yield* cli.run(["git", "remote", "rename", name, newName], {
+      timeout: 5000,
+    });
+  });
+
+export const revsetSymbol = (value: string) => JSON.stringify(value);
+
+export const exactPattern = (value: string) => `exact:${JSON.stringify(value)}`;
 
 export const operationUndo = (
   config: RepositoryConfig,

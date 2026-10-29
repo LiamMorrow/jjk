@@ -1,8 +1,11 @@
 import path from "path";
 import ansiRegex from "ansi-regex";
 import type {
+  BookmarkedCommit,
+  BookmarkRef,
   Change,
   FileStatus,
+  GitRemote,
   Operation,
   RepositoryStatus,
   Show,
@@ -618,4 +621,54 @@ export function parseLog(output: string): ChangeNode[] {
     );
   }
   return changeNodes;
+}
+
+export const BOOKMARK_REFS_TEMPLATE =
+  [
+    "stringify(name)",
+    'if(remote, stringify(remote), "")',
+    'if(normal_target, normal_target.commit_id(), "")',
+    'if(tracked, "1", "0")',
+    'if(tracked && remote, tracking_ahead_count.lower(), "")',
+    'if(tracked && remote, tracking_behind_count.lower(), "")',
+  ].join(' ++ "\\t" ++ ') + ' ++ "\\n"';
+
+export const BOOKMARKED_COMMIT_TEMPLATE =
+  'commit_id ++ "\\t" ++ local_bookmarks.map(|b| stringify(b.name())).join("\\t")';
+
+const parseCount = (value: string | undefined) =>
+  value ? Number(value) : undefined;
+
+export function parseBookmarkRefs(output: string): BookmarkRef[] {
+  return output
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => {
+      const [name, remote, commitId, tracked, aheadCount, behindCount] =
+        line.split("\t");
+      return {
+        name,
+        remote: remote || undefined,
+        commitId: commitId || undefined,
+        tracked: tracked === "1",
+        remoteAheadCount: parseCount(aheadCount),
+        remoteBehindCount: parseCount(behindCount),
+      };
+    });
+}
+
+export function parseBookmarkedCommit(
+  output: string,
+): BookmarkedCommit | undefined {
+  const [commitId, ...bookmarks] = output.trim().split("\t");
+  return commitId ? { commitId, bookmarks } : undefined;
+}
+
+export function parseGitRemotes(output: string): GitRemote[] {
+  return output
+    .trim()
+    .split("\n")
+    .map((line) => line.trim().split(/\s+/))
+    .filter((parts) => parts.length >= 2)
+    .map(([name, url]) => ({ name, url }));
 }

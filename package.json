@@ -529,6 +529,11 @@
           "description": "Look up the GitHub pull request a commit was merged in when hovering blame annotations. Uses the GitHub API, authenticating with an existing VS Code GitHub session if one is available.",
           "scope": "resource"
         },
+        "jj-code.githubPullRequestsIntegration": {
+          "type": "boolean",
+          "default": true,
+          "description": "Expose jj repositories to the GitHub Pull Requests extension, reporting the nearest ancestor bookmark as the current branch so it can find the pull request and show its comments."
+        },
         "jj-code.commandTimeout": {
           "type": [
             "number",
