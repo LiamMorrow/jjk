@@ -274,6 +274,45 @@ export const gitFetch = (
     return yield* cli.run(["git", "fetch"], { timeout: 60_000 });
   });
 
+export interface GitRemote {
+  readonly name: string;
+  readonly url: string;
+}
+
+export const getGitRemotes = (
+  _config: RepositoryConfig,
+): Effect.Effect<GitRemote[], JJCliError | JJImmutableError, RepositoryEnv> =>
+  Effect.gen(function* () {
+    const cli = yield* JJCli;
+    const output = yield* cli.run(["git", "remote", "list"], {
+      timeout: 5000,
+      ignoreWorkingCopy: true,
+    });
+    return output
+      .trim()
+      .split("\n")
+      .map((line) => line.trim().split(/\s+/))
+      .filter((parts) => parts.length >= 2)
+      .map(([name, url]) => ({ name, url }));
+  });
+
+export const getLatestPushedAncestor = (
+  config: RepositoryConfig,
+  rev: string,
+  remote: string,
+): Effect.Effect<
+  string | undefined,
+  JJCliError | JJImmutableError,
+  RepositoryEnv
+> =>
+  log(
+    config,
+    `latest(::(${rev}) & ::remote_bookmarks(remote=exact:${JSON.stringify(remote)}))`,
+    "commit_id",
+    1,
+    true,
+  ).pipe(Effect.map((output) => output.trim() || undefined));
+
 export const operationUndo = (
   config: RepositoryConfig,
   id: string,

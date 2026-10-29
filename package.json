@@ -216,6 +216,18 @@
         "title": "Open changes",
         "category": "Jujutsu",
         "icon": "$(compare-changes)"
+      },
+      {
+        "command": "jj.copyGitHubPermalink",
+        "title": "Copy GitHub Permalink",
+        "category": "Jujutsu",
+        "icon": "$(github)"
+      },
+      {
+        "command": "jj.copyGitHubFilePermalink",
+        "title": "Copy GitHub Permalink",
+        "category": "Jujutsu",
+        "icon": "$(github)"
       }
     ],
     "menus": {
@@ -254,6 +266,25 @@
         {
           "command": "jj.squashSelectedRanges",
           "when": "jj.reposExist && editorTextFocus && editorHasSelection && !editorReadonly"
+        },
+        {
+          "command": "jj.copyGitHubPermalink",
+          "when": "jj.reposExist && resourceScheme =~ /^(file|jj)$/",
+          "group": "9_cutcopypaste@10"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "jj.copyGitHubFilePermalink",
+          "when": "jj.reposExist && resourceScheme =~ /^(file|jj)$/",
+          "group": "1_cutcopypaste@10"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "jj.copyGitHubFilePermalink",
+          "when": "jj.reposExist && resourceScheme == file && !explorerResourceIsFolder",
+          "group": "6_copypath@10"
         }
       ],
       "view/title": [
@@ -470,6 +501,10 @@
         {
           "command": "jj.revertChange",
           "when": "false"
+        },
+        {
+          "command": "jj.copyGitHubFilePermalink",
+          "when": "false"
         }
       ],
       "scm/change/title": [
@@ -486,6 +521,12 @@
           "type": "boolean",
           "default": true,
           "description": "Enables in-line blame annotations",
+          "scope": "resource"
+        },
+        "jjk.githubPullRequestLookup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Look up the GitHub pull request a commit was merged in when hovering blame annotations. Uses the GitHub API, authenticating with an existing VS Code GitHub session if one is available.",
           "scope": "resource"
         },
         "jjk.commandTimeout": {

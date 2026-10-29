@@ -200,3 +200,30 @@ export function applyLineChanges(
 
   return result.join("");
 }
+
+export function mapModifiedLineToOriginal(
+  diff: LinesDiff,
+  lineNumber: number,
+): number {
+  let offset = 0;
+  for (const change of diff.changes) {
+    if (lineNumber < change.modified.startLineNumber) {
+      break;
+    }
+    if (lineNumber < change.modified.endLineNumberExclusive) {
+      const lastOriginalLine = Math.max(
+        change.original.startLineNumber,
+        change.original.endLineNumberExclusive - 1,
+      );
+      return Math.min(
+        change.original.startLineNumber +
+          (lineNumber - change.modified.startLineNumber),
+        lastOriginalLine,
+      );
+    }
+    offset =
+      change.original.endLineNumberExclusive -
+      change.modified.endLineNumberExclusive;
+  }
+  return lineNumber + offset;
+}

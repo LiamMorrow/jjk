@@ -11,8 +11,18 @@ import {
   getShow,
 } from "./services/Repository";
 import type { RepoHandle } from "./repoHandle";
-import { getParams } from "./uri";
+import { getContentRev, getParams } from "./uri";
 import type { ChangeWithDetails } from "./types";
+import {
+  commitUrl,
+  findPullRequestNumberInMessage,
+  findPushedAncestors,
+  linkifyIssueReferences,
+  lookupPullRequest,
+  pullRequestUrl,
+  type GitHubRepo,
+  type PullRequest,
+} from "./github";
 
 import type { JjWatchmanRegisterSnapshotTriggerRef } from "./services/JjWatchmanSnapshotTriggerRef";
 
@@ -78,15 +88,6 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
   const sameLines = (left: readonly number[], right: readonly number[]) =>
     left.length === right.length &&
     left.every((line, index) => line === right[index]);
-  const getAnnotationRev = (uri: vscode.Uri): string => {
-    if (uri.scheme !== "jj") {
-      return "@";
-    }
-    const params = getParams(uri);
-    return "diffOriginalRev" in params
-      ? `${params.diffOriginalRev}-`
-      : params.rev;
-  };
   const clearAnnotations = (editor: vscode.TextEditor) =>
     Effect.sync(() => {
       editor.setDecorations(annotationDecoration, []);
@@ -128,7 +129,7 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
         return;
       }
 
-      const rev = getAnnotationRev(uri);
+      const rev = getContentRev(uri);
       const params = uri.scheme === "jj" ? getParams(uri) : undefined;
       const filePath = yield* deps.runRepoEffect(
         repo,
@@ -255,6 +256,60 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
       });
     });
 
+  const getGitHubDetailsEffect = (
+    repo: RepoHandle,
+    change: ChangeWithDetails,
+  ): Effect.Effect<
+    | {
+        readonly repo: GitHubRepo;
+        readonly pushed: boolean;
+        readonly pullRequest: PullRequest | undefined;
+      }
+    | undefined,
+    Error,
+    Vscode
+  > =>
+    Effect.gen(function* () {
+      const ancestors = yield* deps.runRepoEffect(
+        repo,
+        findPushedAncestors(repo.config, change.commitId),
+      );
+      const pushedTo = ancestors.find(
+        (ancestor) => ancestor.commitId === change.commitId,
+      )?.repo;
+      const githubRepo = pushedTo ?? ancestors[0]?.repo;
+      if (!githubRepo) {
+        return undefined;
+      }
+
+      const pullRequestNumber = findPullRequestNumberInMessage(
+        change.description,
+      );
+      if (pullRequestNumber !== undefined) {
+        return {
+          repo: githubRepo,
+          pushed: pushedTo !== undefined,
+          pullRequest: {
+            number: pullRequestNumber,
+            url: pullRequestUrl(githubRepo, pullRequestNumber),
+          },
+        };
+      }
+
+      const lookupEnabled = yield* getConfigurationValue<boolean>(
+        "jjk",
+        "githubPullRequestLookup",
+        vscode.Uri.file(repo.config.repositoryRoot),
+      );
+      const pullRequest =
+        pushedTo && lookupEnabled !== false
+          ? yield* lookupPullRequest(pushedTo, change.commitId).pipe(
+              Effect.catchAll(() => Effect.succeed(undefined)),
+            )
+          : undefined;
+      return { repo: githubRepo, pushed: pushedTo !== undefined, pullRequest };
+    });
+
   const provideHoverEffect = (
     document: vscode.TextDocument,
     position: vscode.Position,
@@ -303,20 +358,43 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
       const viewChangeArgs = encodeURIComponent(
         JSON.stringify([repo.config.repositoryRoot, change.changeId]),
       );
-      const pathAtChange = yield* deps
-        .runRepoEffect(
-          repo,
-          getPathAtRev(
-            repo.config,
-            change.changeId,
-            annotateInfo.rev,
-            annotateInfo.filePath,
+      const [pathAtChange, github] = yield* Effect.all(
+        [
+          deps
+            .runRepoEffect(
+              repo,
+              getPathAtRev(
+                repo.config,
+                change.changeId,
+                annotateInfo.rev,
+                annotateInfo.filePath,
+              ),
+            )
+            .pipe(Effect.catchAll(() => Effect.succeed(annotateInfo.filePath))),
+          getGitHubDetailsEffect(repo, change).pipe(
+            Effect.catchAll(() => Effect.succeed(undefined)),
           ),
-        )
-        .pipe(Effect.catchAll(() => Effect.succeed(annotateInfo.filePath)));
+        ],
+        { concurrency: "unbounded" },
+      );
       const openChangesArgs = encodeURIComponent(
         JSON.stringify([change.changeId, pathAtChange, position.line]),
       );
+      const description = change.description || "(no description)";
+      const links = [
+        `[$(git-commit) ${shortChangeId}](command:jj.viewChange?${viewChangeArgs} "View all changes in ${shortChangeId}")`,
+        `[$(compare-changes)](command:jj.openChangeFileDiff?${openChangesArgs} "Open Changes")`,
+        ...(github?.pushed
+          ? [
+              `[$(github) View on GitHub](${commitUrl(github.repo, change.commitId)} "View commit on GitHub")`,
+            ]
+          : []),
+        ...(github?.pullRequest
+          ? [
+              `[$(git-pull-request) #${github.pullRequest.number}](${github.pullRequest.url} "${(github.pullRequest.title ?? `View pull request #${github.pullRequest.number}`).replace(/"/g, "'")}")`,
+            ]
+          : []),
+      ];
       const message = new vscode.MarkdownString(undefined, true);
       message.isTrusted = {
         enabledCommands: ["jj.viewChange", "jj.openChangeFileDiff"],
@@ -324,13 +402,11 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
       message.appendMarkdown(
         `**${change.author.name}** (${change.author.email}) — ${change.authoredDate}\n\n`,
       );
-      message.appendMarkdown(`${change.description || "(no description)"}\n\n`);
-      message.appendMarkdown("---\n\n");
       message.appendMarkdown(
-        `[$(git-commit) ${shortChangeId}](command:jj.viewChange?${viewChangeArgs} "View all changes in ${shortChangeId}")` +
-          ` &nbsp;|&nbsp; ` +
-          `[$(compare-changes)](command:jj.openChangeFileDiff?${openChangesArgs} "Open Changes")`,
+        `${github ? linkifyIssueReferences(description, github.repo) : description}\n\n`,
       );
+      message.appendMarkdown("---\n\n");
+      message.appendMarkdown(links.join(" &nbsp;|&nbsp; "));
       return new vscode.Hover(message, annotationRange);
     });
 

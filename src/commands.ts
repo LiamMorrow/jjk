@@ -58,6 +58,8 @@ export interface InitCommandHandlers {
     fsPath: string,
     line?: number,
   ) => unknown;
+  readonly copyGitHubPermalink: (uri: vscode.Uri | undefined) => unknown;
+  readonly copyGitHubFilePermalink: (uri: vscode.Uri | undefined) => unknown;
 }
 
 export interface GlobalCommandHandlers {
@@ -214,6 +216,18 @@ export async function registerInitCommands(
     vscode.commands.registerCommand(
       "jj.openChangeFileDiff",
       handlers.openChangeFileDiff,
+    ),
+  );
+  await registerScoped(() =>
+    vscode.commands.registerCommand(
+      "jj.copyGitHubPermalink",
+      handlers.copyGitHubPermalink,
+    ),
+  );
+  await registerScoped(() =>
+    vscode.commands.registerCommand(
+      "jj.copyGitHubFilePermalink",
+      handlers.copyGitHubFilePermalink,
     ),
   );
 }

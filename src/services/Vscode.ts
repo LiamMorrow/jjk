@@ -53,6 +53,12 @@ export interface VscodeService {
   readonly saveTextDocument: (
     document: vscode.TextDocument,
   ) => Effect.Effect<boolean, Error>;
+  readonly showInformationMessage: <T extends string>(
+    message: string,
+    ...items: T[]
+  ) => Effect.Effect<T | undefined>;
+  readonly writeClipboard: (text: string) => Effect.Effect<void, Error>;
+  readonly openExternal: (uri: vscode.Uri) => Effect.Effect<boolean, Error>;
 }
 
 export class Vscode extends Context.Tag("Vscode")<Vscode, VscodeService>() {}
@@ -154,6 +160,23 @@ export function VscodeLive(
         try: () => Promise.resolve(document.save()),
         catch: toError,
       }),
+    showInformationMessage: <T extends string>(
+      message: string,
+      ...items: T[]
+    ) =>
+      Effect.promise(() =>
+        vscode.window.showInformationMessage(message, ...items),
+      ),
+    writeClipboard: (text: string) =>
+      Effect.tryPromise({
+        try: () => Promise.resolve(vscode.env.clipboard.writeText(text)),
+        catch: toError,
+      }),
+    openExternal: (uri: vscode.Uri) =>
+      Effect.tryPromise({
+        try: () => Promise.resolve(vscode.env.openExternal(uri)),
+        catch: toError,
+      }),
   });
 }
 
@@ -250,6 +273,24 @@ export const saveTextDocument = (
   document: vscode.TextDocument,
 ): Effect.Effect<boolean, Error, Vscode> =>
   Effect.flatMap(Vscode, (service) => service.saveTextDocument(document));
+
+export const showInformationMessage = <T extends string>(
+  message: string,
+  ...items: T[]
+): Effect.Effect<T | undefined, never, Vscode> =>
+  Effect.flatMap(Vscode, (service) =>
+    service.showInformationMessage(message, ...items),
+  );
+
+export const writeClipboard = (
+  text: string,
+): Effect.Effect<void, Error, Vscode> =>
+  Effect.flatMap(Vscode, (service) => service.writeClipboard(text));
+
+export const openExternal = (
+  uri: vscode.Uri,
+): Effect.Effect<boolean, Error, Vscode> =>
+  Effect.flatMap(Vscode, (service) => service.openExternal(uri));
 
 export const setContext = (
   key: string,

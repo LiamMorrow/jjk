@@ -29,3 +29,13 @@ export function getParams(uri: Uri) {
   }
   return parsed;
 }
+
+export function getContentRev(uri: Uri): string {
+  if (uri.scheme !== "jj") {
+    return "@";
+  }
+  const params = getParams(uri);
+  return "diffOriginalRev" in params
+    ? `${params.diffOriginalRev}-`
+    : params.rev;
+}

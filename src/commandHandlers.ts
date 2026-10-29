@@ -7,6 +7,7 @@ import {
 } from "./navigationCommandHandlers";
 import { createSelectionSquashInitHandlers } from "./selectionSquashCommandHandlers";
 import { createRevertChangeInitHandlers } from "./revertChangeCommandHandlers";
+import { createGitHubInitHandlers } from "./githubCommandHandlers";
 
 export type { CommandHandlerDeps } from "./commandHandlerShared";
 
@@ -17,6 +18,7 @@ export const createInitCommandHandlers = (
   ...createNavigationInitHandlers(deps),
   ...createSelectionSquashInitHandlers(deps),
   ...createRevertChangeInitHandlers(deps),
+  ...createGitHubInitHandlers(deps),
 });
 
 export const createGlobalCommandHandlers = (
