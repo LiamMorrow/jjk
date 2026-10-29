@@ -3,6 +3,11 @@ import * as vscode from "vscode";
 import type { WorkspaceSourceControlManager } from "../repoHandle";
 import type * as UriModule from "../uri";
 import type * as GraphWebviewModule from "../graphWebview";
+import type * as GitHubModule from "../github";
+import type * as GitHubPullRequestsModule from "../githubPullRequests";
+import type * as DescriptionEditorModule from "../descriptionEditor";
+import type * as LineDiffUtilsModule from "../lineDiffUtils";
+import type * as ParsersModule from "../parsers";
 
 type ExtensionAPI = {
   workspaceSCM: WorkspaceSourceControlManager;
@@ -16,6 +21,11 @@ type ExtensionAPI = {
     ImmutableError: new (message: string) => Error;
   };
   graphWebview: typeof GraphWebviewModule;
+  github: typeof GitHubModule;
+  githubPullRequests: typeof GitHubPullRequestsModule;
+  descriptionEditor: typeof DescriptionEditorModule;
+  lineDiffUtils: typeof LineDiffUtilsModule;
+  parsers: typeof ParsersModule;
 };
 
 export async function getExtensionAPI(): Promise<ExtensionAPI> {

@@ -321,6 +321,11 @@ export async function activate(context: vscode.ExtensionContext) {
     workspaceSCM,
     uri: await import("./uri"),
     graphWebview: await import("./graphWebview"),
+    github: await import("./github"),
+    githubPullRequests: await import("./githubPullRequests"),
+    descriptionEditor: await import("./descriptionEditor"),
+    lineDiffUtils: await import("./lineDiffUtils"),
+    parsers: await import("./parsers"),
     repository: {
       parseRenamePaths,
       resolveRepoPath,
