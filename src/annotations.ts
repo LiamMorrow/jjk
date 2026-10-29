@@ -140,7 +140,9 @@ export async function setupAnnotations(deps: AnnotationDeps): Promise<void> {
         .runRepoEffect(repo, annotate(repo.config, filePath, rev))
         .pipe(
           Effect.catchIf(
-            (error) => error.message.includes("more than one revision"),
+            (error) =>
+              error.message.includes("more than one revision") ||
+              error.message.includes("No such path"),
             () => Effect.succeed<string[]>([]),
           ),
         );
